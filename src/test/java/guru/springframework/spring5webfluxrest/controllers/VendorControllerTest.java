@@ -13,6 +13,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 
 public class VendorControllerTest
 {
@@ -31,7 +33,8 @@ public class VendorControllerTest
     public void list() {
         BDDMockito.given(vendorRepository.findAll()).willReturn(Flux.just(
             Vendor.builder().firstName("George").lastName("Leber").build(),
-            Vendor.builder().firstName("Hannah").lastName("Montana").build()));
+            Vendor.builder().firstName("Hannah").lastName("Montana").build()
+        ));
 
         webTestClient.get().uri("/api/v1/vendors")
             .exchange()
@@ -76,5 +79,39 @@ public class VendorControllerTest
             .body(vendorToUpdateMono, Vendor.class)
             .exchange()
             .expectStatus().isOk();
+    }
+
+    @Test
+    public void testPatchWithChangesVendor() {
+        BDDMockito.given(vendorRepository.findById(anyString()))
+            .willReturn(Mono.just(Vendor.builder().firstName("John").build()));
+        BDDMockito.given(vendorRepository.save(any(Vendor.class)))
+            .willReturn(Mono.just(Vendor.builder().build()));
+
+        Mono<Vendor> vendorToUpdateMono = Mono.just(Vendor.builder().firstName("Marry").build());
+
+        webTestClient.patch().uri("/api/v1/vendors/someId")
+            .body(vendorToUpdateMono, Vendor.class)
+            .exchange()
+            .expectStatus().isOk();
+
+        BDDMockito.verify(vendorRepository).save(any());
+    }
+
+    @Test
+    public void testPatchWithNoChangesVendor() {
+        BDDMockito.given(vendorRepository.findById(anyString()))
+            .willReturn(Mono.just(Vendor.builder().firstName("Marry").build()));
+        BDDMockito.given(vendorRepository.save(any(Vendor.class)))
+            .willReturn(Mono.just(Vendor.builder().build()));
+
+        Mono<Vendor> vendorToUpdateMono = Mono.just(Vendor.builder().firstName("Marry").build());
+
+        webTestClient.patch().uri("/api/v1/vendors/someId")
+            .body(vendorToUpdateMono, Vendor.class)
+            .exchange()
+            .expectStatus().isOk();
+
+        BDDMockito.verify(vendorRepository, never()).save(any());
     }
 }
